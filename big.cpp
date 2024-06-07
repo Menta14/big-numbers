@@ -6,7 +6,7 @@ struct big::node {
     short data;
     node *flw, *prev;
     node (short data = -1, node *flw = nullptr, node *prev = nullptr): data(data), flw(flw), prev(prev) {}
-} *frontdigit, *backdigit;
+};
 
 big::big(): frontdigit(nullptr), backdigit(nullptr), length(0) {}
 big::big(unsigned long long x) : big() {
