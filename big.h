@@ -6,6 +6,7 @@
 
 class big {
     private:
+        bool negative;
         struct node;
         node *frontdigit, *backdigit;
         size_t length;
@@ -21,7 +22,7 @@ class big {
 
     public:
         big();
-        big(unsigned long long x);
+        big(long long x);
         big(const big &from);
         ~big();
 
@@ -40,6 +41,7 @@ class big {
         big& operator+=(const big &add);
         big& operator++();
         big operator++(int);
+        big operator-() const;
         big operator-(const big &sub) const;
         big& operator-=(const big &add);
         big& operator--();
@@ -53,6 +55,7 @@ class big {
 
         size_t size() const;
 
+        big abs() const;
         big gcd(const big &other) const;
         
         using decomp_t = std::vector<std::pair<big, int>>;

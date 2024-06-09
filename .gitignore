@@ -1,0 +1,4 @@
+*
+!.gitignore
+!big.cpp
+!big.h

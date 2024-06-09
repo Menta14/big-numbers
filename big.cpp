@@ -8,11 +8,15 @@ struct big::node {
     node (short data = -1, node *flw = nullptr, node *prev = nullptr): data(data), flw(flw), prev(prev) {}
 };
 
-big::big(): frontdigit(nullptr), backdigit(nullptr), length(0) {}
-big::big(unsigned long long x) : big() {
+big::big(): negative(false), frontdigit(nullptr), backdigit(nullptr), length(0) {}
+big::big(long long x) : big() {
     if (x == 0) {
         push_front(0);
         return;
+    }
+    if (x < 0) {
+        negative = true;
+        x = -x;
     }
     while (x > 0) {
         push_front(x%10);
@@ -20,6 +24,7 @@ big::big(unsigned long long x) : big() {
     }
 }
 big::big(const big &from): big() {
+    negative = from.negative;
     node *curr = from.frontdigit;
     while (curr != nullptr) {
         push_back(curr->data);
@@ -37,7 +42,11 @@ big::~big() {
 
 std::istream& operator>>(std::istream &is, big &target) {
     char ch;
-    while (!isdigit(ch = is.get()));
+    while (!isdigit(ch = is.get()) && ch != '-');
+    if (ch == '-') {
+        target.negative = true;
+        ch = is.get();
+    }
     do
         target.push_back(ch-'0');
     while (isdigit(ch = is.get()));
@@ -45,6 +54,8 @@ std::istream& operator>>(std::istream &is, big &target) {
 }
 
 std::ostream& operator<<(std::ostream &os, const big &target) {
+    if (target.negative)
+        os << '-';
     big::node *curr = target.frontdigit;
     while (curr != nullptr) {
         os << curr->data;
@@ -60,6 +71,7 @@ big& big::operator=(const big &from) {
     while (length > 0)
         pop_front();
 
+    negative = from.negative;
     node *curr = from.frontdigit;
     while (curr != nullptr) {
         push_back(curr->data);
@@ -70,12 +82,14 @@ big& big::operator=(const big &from) {
 }
 
 bool big::operator<(const big &comp) const {
+    if (negative != comp.negative)
+        return negative > comp.negative;
     if (size() != comp.size())
-        return size() < comp.size();
+        return negative ^ (size() < comp.size());
     node *b1 = front(), *b2 = comp.front();
     while (b1 != nullptr) {
         if (b1->data != b2->data)
-            return b1->data < b2->data;
+            return negative ^ (b1->data < b2->data);
         b1 = b1->flw;
         b2 = b2->flw;
     }
@@ -83,6 +97,8 @@ bool big::operator<(const big &comp) const {
 }
 
 bool big::operator==(const big &comp) const {
+    if (negative != comp.negative)
+        return false;
     if (size() != comp.size())
         return false;
     node *b1 = front(), *b2 = comp.front();
@@ -113,6 +129,16 @@ bool big::operator>=(const big &comp) const {
 
 big big::operator+(const big &add) const {
     big res;
+    if (negative != add.negative) {
+        big a = this->abs();
+        big b = add.abs();
+        if (a > b)
+            std::swap(a, b);
+        res = a - b;
+        res.negative = this->negative ^ (this->abs() < add.abs());
+        return res;
+    }
+    res.negative = negative;
     node *b1 = back(), *b2 = add.back();
     int t = 0;
     while (b1 != nullptr && b2 != nullptr) {
@@ -155,8 +181,19 @@ big big::operator++(int) {
     return temp;
 }
 
+big big::operator-() const {
+    big res(*this);
+    res.negative = !res.negative;
+    return res;
+}
+
 big big::operator-(const big &sub) const {
     big from(*this), to = sub, res;
+    if (from.negative != to.negative) {
+        res = from + (-to);
+        return res;
+    }
+    res.negative = from.negative ^ (from.abs() < to.abs());
     if (from < to)
         std::swap(from, to);
     node *b1 = from.back(), *b2 = to.back();
@@ -229,6 +266,7 @@ big big::operator*(const big &mult) const {
     big res = 0;
     for (const big &e: aux)
         res += e;
+    res.negative = this->negative ^ mult.negative;
     return res.trim();
 }
 
@@ -257,6 +295,7 @@ big big::operator/(const big &div) const {
         curr = cop - div*x;
         b = b->flw;
     }
+    quotient.negative = this->negative ^ div.negative;
     return quotient.trim();
 }
 
@@ -283,6 +322,7 @@ big big::operator%(const big &mod) const {
         curr = cop - mod*x;
         b = b->flw;
     }
+    curr.negative = this->negative;
     return curr;
 }
 
@@ -373,7 +413,7 @@ std::ostream& operator<<(std::ostream &os, const big::decomp_t &t) {
 
 big::decomp_t big::primefact() const {
     decomp_t decomp;
-    big d = 2, curr(*this);
+    big d = 2, curr(this->abs());
     while (d <= curr) {
         if (curr % d == 0) {
             int e = 0;
@@ -388,8 +428,14 @@ big::decomp_t big::primefact() const {
     return decomp;
 }
 
+big big::abs() const {
+    big res(*this);
+    res.negative = false;
+    return res;
+}
+
 big big::gcd(const big &other) const {
-    big a(*this), b(other), c;
+    big a(this->abs()), b(other.abs()), c;
     while (b > 0) {
         c = b;
         b = a%b;
